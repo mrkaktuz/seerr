@@ -159,8 +159,8 @@ jobs:
           tags: |
             ghcr.io/mrkaktuz/seerr:latest
             ghcr.io/mrkaktuz/seerr:${{ steps.upstream.outputs.ua_tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=docker-${{ steps.upstream.outputs.ua_tag }}
+          cache-to: type=gha,mode=max,scope=docker-${{ steps.upstream.outputs.ua_tag }}
 
       - name: Create GitHub release
         if: steps.check.outputs.skip != 'true' && steps.merge.outputs.failed != 'true'
