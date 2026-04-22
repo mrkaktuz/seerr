@@ -122,22 +122,21 @@ const SettingsAbout = () => {
               title="UA Fork"
               className="flex flex-row items-center truncate"
             >
-              <a
-                href="https://github.com/mrkaktuz/seerr/releases"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="truncate font-mono text-indigo-500 transition duration-300 hover:underline"
-              >
-                {status.commitTag}
-              </a>
+              <code className="truncate">{status.commitTag}</code>
               {forkRelease &&
                 (forkRelease.tag_name === status.commitTag ? (
-                  <Badge
-                    badgeType="success"
-                    className="ml-2"
+                  <a
+                    href="https://github.com/mrkaktuz/seerr/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    {intl.formatMessage(messages.uptodate)}
-                  </Badge>
+                    <Badge
+                      badgeType="success"
+                      className="ml-2 !cursor-pointer transition hover:bg-green-400"
+                    >
+                      {intl.formatMessage(messages.uptodate)}
+                    </Badge>
+                  </a>
                 ) : (
                   <a
                     href="https://github.com/mrkaktuz/seerr/releases"
