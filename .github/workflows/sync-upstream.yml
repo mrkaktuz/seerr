@@ -19,6 +19,8 @@ jobs:
     name: Merge upstream, build & push Docker
     runs-on: ubuntu-22.04
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write
       packages: write

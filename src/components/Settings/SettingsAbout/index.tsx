@@ -112,6 +112,16 @@ const SettingsAbout = () => {
                 </a>
               ))}
           </List.Item>
+          <List.Item title="UA Fork">
+            <a
+              href="https://github.com/mrkaktuz/seerr"
+              target="_blank"
+              rel="noreferrer"
+              className="text-indigo-500 transition duration-300 hover:underline"
+            >
+              github.com/mrkaktuz/seerr
+            </a>
+          </List.Item>
           <List.Item title={intl.formatMessage(messages.totalmedia)}>
             {intl.formatNumber(data.totalMediaItems)}
           </List.Item>
