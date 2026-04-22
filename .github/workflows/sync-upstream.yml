@@ -154,6 +154,8 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64
+          build-args: |
+            COMMIT_TAG=${{ steps.upstream.outputs.ua_tag }}
           tags: |
             ghcr.io/mrkaktuz/seerr:latest
             ghcr.io/mrkaktuz/seerr:${{ steps.upstream.outputs.ua_tag }}
