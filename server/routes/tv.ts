@@ -1,3 +1,4 @@
+import checkUA from '@server/api/kinobaza';
 import { getMetadataProvider } from '@server/api/metadata';
 import RottenTomatoes from '@server/api/rating/rottentomatoes';
 import TheMovieDb from '@server/api/themoviedb';
@@ -42,7 +43,28 @@ tvRoutes.get('/:id', async (req, res, next) => {
       },
     });
 
-    const data = mapTvDetails(tv, media, onUserWatchlist);
+    let ua;
+    const rgx = new RegExp(`/${MediaType.TV}/\\d+/?(?:\\?|$)`);
+    if (
+      !req.headers.referer ||
+      (req.headers.referer && rgx.test(req.headers.referer))
+    ) {
+      ua =
+        (await checkUA.fromCache(tmdbTv.id)) ||
+        (await checkUA.directFromKinobaza(
+          tmdbTv.id,
+          MediaType.TV,
+          tmdbTv.name,
+          tmdbTv.original_name,
+          tmdbTv.first_air_date,
+          tmdbTv.last_air_date
+        ));
+    }
+
+    const data = mapTvDetails(tv, media, onUserWatchlist, {
+      audio: ua?.mostRelevant?.uaAudio,
+      subs: ua?.mostRelevant?.uaSubs,
+    });
 
     // TMDB issue where it doesnt fallback to English when no overview is available in requested locale.
     if (!data.overview) {

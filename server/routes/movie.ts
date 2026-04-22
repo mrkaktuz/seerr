@@ -1,3 +1,4 @@
+import checkUA from '@server/api/kinobaza';
 import IMDBRadarrProxy from '@server/api/rating/imdbRadarrProxy';
 import RottenTomatoes from '@server/api/rating/rottentomatoes';
 import { type RatingResponse } from '@server/api/ratings';
@@ -34,7 +35,27 @@ movieRoutes.get('/:id', async (req, res, next) => {
       },
     });
 
-    const data = mapMovieDetails(tmdbMovie, media, onUserWatchlist);
+    let ua;
+    const rgx = new RegExp(`/${MediaType.MOVIE}/\\d+/?(?:\\?|$)`);
+    if (
+      !req.headers.referer ||
+      (req.headers.referer && rgx.test(req.headers.referer))
+    ) {
+      ua =
+        (await checkUA.fromCache(tmdbMovie.id)) ||
+        (await checkUA.directFromKinobaza(
+          tmdbMovie.id,
+          MediaType.MOVIE,
+          tmdbMovie.title,
+          tmdbMovie.original_title,
+          tmdbMovie.release_date
+        ));
+    }
+
+    const data = mapMovieDetails(tmdbMovie, media, onUserWatchlist, {
+      audio: ua?.mostRelevant?.uaAudio,
+      subs: ua?.mostRelevant?.uaSubs,
+    });
 
     // TMDB issue where it doesnt fallback to English when no overview is available in requested locale.
     if (!data.overview) {

@@ -589,6 +589,19 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                 ({data.firstAirDate.slice(0, 4)})
               </span>
             )}
+            <span>
+              {data.ua?.audio || data.ua?.subs ? (
+                <span className="flag:UA ml-1.5 text-xs" />
+              ) : (
+                ''
+              )}
+              {data.ua?.audio ? <span className="text-base">🎧</span> : ''}
+              {!data.ua?.audio && data.ua?.subs ? (
+                <span className="text-base">💬</span>
+              ) : (
+                ''
+              )}
+            </span>
           </h1>
           <span className="media-attributes">
             {seriesAttributes.length > 0 &&

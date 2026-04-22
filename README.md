@@ -1,3 +1,8 @@
+> **🇺🇦 SeerrUA** — Ukrainian fork of Seerr with UA audio/subtitles info from [Kinobaza](https://kinobaza.com.ua) and Ukrainian localization.
+> Docker image: `ghcr.io/mrkaktuz/seerr:latest` **(linux/amd64 only)**
+
+---
+
 <p align="center">
 <img src="./public/logo_full.svg" alt="Seerr" style="margin: 20px 0;">
 </p>

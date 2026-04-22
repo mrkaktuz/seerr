@@ -117,7 +117,7 @@ export const availableLanguages: AvailableLanguageObject = {
   },
   ru: {
     code: 'ru',
-    display: 'pусский',
+    display: 'pусський 💩',
   },
   sr: {
     code: 'sr',
