@@ -80,6 +80,11 @@ const VersionStatus = ({ onClick }: VersionStatusProps) => {
             </code>
           )}
         </span>
+        {data.commitTag && data.commitTag !== 'local' && (
+          <span className="truncate opacity-60">
+            <code className="bg-transparent p-0">{data.commitTag}</code>
+          </span>
+        )}
       </div>
       {data.updateAvailable && <ArrowUpCircleIcon className="h-6 w-6" />}
     </Link>
