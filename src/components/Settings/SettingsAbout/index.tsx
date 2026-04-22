@@ -41,6 +41,11 @@ const SettingsAbout = () => {
 
   const { data: status } = useSWR<StatusResponse>('/api/v1/status');
 
+  const { data: forkRelease } = useSWR<{ tag_name: string }>(
+    'https://api.github.com/repos/mrkaktuz/seerr/releases/latest',
+    { refreshInterval: 0, revalidateOnFocus: false }
+  );
+
   if (!data && !error) {
     return <LoadingSpinner />;
   }
@@ -112,16 +117,43 @@ const SettingsAbout = () => {
                 </a>
               ))}
           </List.Item>
-          <List.Item title="UA Fork">
-            <a
-              href="https://github.com/mrkaktuz/seerr"
-              target="_blank"
-              rel="noreferrer"
-              className="text-indigo-500 transition duration-300 hover:underline"
+          {status?.commitTag && status.commitTag !== 'local' && (
+            <List.Item
+              title="UA Fork"
+              className="flex flex-row items-center truncate"
             >
-              github.com/mrkaktuz/seerr
-            </a>
-          </List.Item>
+              <a
+                href="https://github.com/mrkaktuz/seerr/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate font-mono text-indigo-500 transition duration-300 hover:underline"
+              >
+                {status.commitTag}
+              </a>
+              {forkRelease &&
+                (forkRelease.tag_name === status.commitTag ? (
+                  <Badge
+                    badgeType="success"
+                    className="ml-2"
+                  >
+                    {intl.formatMessage(messages.uptodate)}
+                  </Badge>
+                ) : (
+                  <a
+                    href="https://github.com/mrkaktuz/seerr/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Badge
+                      badgeType="warning"
+                      className="ml-2 !cursor-pointer transition hover:bg-yellow-400"
+                    >
+                      {intl.formatMessage(messages.outofdate)}
+                    </Badge>
+                  </a>
+                ))}
+            </List.Item>
+          )}
           <List.Item title={intl.formatMessage(messages.totalmedia)}>
             {intl.formatNumber(data.totalMediaItems)}
           </List.Item>
