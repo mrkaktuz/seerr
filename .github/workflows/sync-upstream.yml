@@ -48,7 +48,7 @@ jobs:
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "ua_tag=${TAG}-ua" >> "$GITHUB_OUTPUT"
+          echo "ua_tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Upstream latest: $TAG"
 
       - name: Check if fork already has this release
@@ -186,11 +186,10 @@ jobs:
                 body: [
                   `Based on upstream [${upTag}](https://github.com/seerr-team/seerr/releases/tag/${upTag}).`,
                   '',
-                  '### UA additions',
+                  '### Додатковий функціонал',
                   '- 🇺🇦 Перевірка наявності UA аудіо/субтитрів через [Kinobaza](https://kinobaza.com.ua)',
-                  '- 🇺🇦 Українська локалізація',
                   '',
-                  '**Docker image:**',
+                  '**Docker image (linux/amd64):**',
                   '```',
                   `docker pull ghcr.io/mrkaktuz/seerr:${uaTag}`,
                   '```',
