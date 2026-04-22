@@ -25,10 +25,10 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout main-UA-version
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
-          ref: main-UA-version
+          ref: master
           fetch-depth: 0
 
       - name: Configure git
@@ -69,7 +69,7 @@ jobs:
           git remote add upstream https://github.com/seerr-team/seerr.git
           git fetch upstream "refs/tags/${{ steps.upstream.outputs.tag }}:refs/tags/_upstream-fetch"
 
-      - name: Merge upstream tag into main-UA-version
+      - name: Merge upstream tag into master
         if: steps.check.outputs.skip != 'true'
         id: merge
         run: |
@@ -95,9 +95,9 @@ jobs:
               repo: context.repo.repo,
               title: `🚨 Merge conflict with upstream ${tag}`,
               body: [
-                `Automatic merge of \`${tag}\` into \`main-UA-version\` failed due to conflicts.`,
+                `Automatic merge of \`${tag}\` into \`master\` failed due to conflicts.`,
                 '',
-                '**Action needed:** resolve conflicts manually and push to `main-UA-version`.',
+                '**Action needed:** resolve conflicts manually and push to `master`.',
                 '',
                 `Upstream release: https://github.com/seerr-team/seerr/releases/tag/${tag}`,
               ].join('\n'),
@@ -123,7 +123,7 @@ jobs:
         run: |
           UA_TAG="${{ steps.upstream.outputs.ua_tag }}"
           git tag "$UA_TAG" || echo "tag already exists"
-          git push origin main-UA-version
+          git push origin master
           git push origin "$UA_TAG" || git push --force origin "$UA_TAG"
 
       - name: Set up Docker Buildx
@@ -171,7 +171,7 @@ jobs:
                 repo: context.repo.repo,
                 tag_name: uaTag,
                 name: uaTag,
-                target_commitish: 'main-UA-version',
+                target_commitish: 'master',
                 body: [
                   `Based on upstream [${upTag}](https://github.com/seerr-team/seerr/releases/tag/${upTag}).`,
                   '',
