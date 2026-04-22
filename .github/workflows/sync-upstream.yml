@@ -109,10 +109,19 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
-            const file = 'src/context/LanguageContext.tsx';
-            let src = fs.readFileSync(file, 'utf8');
+
+            // Restore Russian 💩
+            const langFile = 'src/context/LanguageContext.tsx';
+            let src = fs.readFileSync(langFile, 'utf8');
             src = src.replace(/display: 'p?[Рр]усс?ьк?[ийій]+(?:\s*💩)?'/, \"display: 'pусський 💩'\");
-            fs.writeFileSync(file, src);
+            fs.writeFileSync(langFile, src);
+
+            // Patch Dockerfile: allow pnpm to install unlocked deps (we add cheerio, html-entities)
+            const dockerfile = 'Dockerfile';
+            let df = fs.readFileSync(dockerfile, 'utf8');
+            df = df.replace(/pnpm install --prod --frozen-lockfile/g, 'pnpm install --prod --no-frozen-lockfile');
+            df = df.replace(/pnpm install --frozen-lockfile/g, 'pnpm install --no-frozen-lockfile');
+            fs.writeFileSync(dockerfile, df);
           "
           if ! git diff --quiet; then
             git commit -am "fix: restore fork patches after upstream merge"
