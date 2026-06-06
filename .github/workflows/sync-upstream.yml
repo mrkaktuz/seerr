@@ -75,36 +75,68 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         id: merge
         run: |
-          if git merge _upstream-fetch \
-              --no-commit --no-edit; then
-            git checkout HEAD -- .github/workflows/
-            git commit -m "chore: merge upstream ${{ steps.upstream.outputs.tag }}" || true
-            echo "failed=false" >> "$GITHUB_OUTPUT"
-          else
+          # Start the merge; tolerate conflicts so we can auto-resolve the
+          # ones we always expect (deleted upstream workflows + patched files).
+          git merge _upstream-fetch --no-commit --no-edit || true
+
+          # 1. Workflow files: the fork keeps ONLY sync-upstream.yml. Upstream
+          #    changes to other workflows show up as modify/delete conflicts —
+          #    resolve every one of them in favour of our deletion.
+          git ls-files -u -- .github/workflows \
+            | awk '{print $4}' | sort -u \
+            | while read -r f; do
+                git rm -f --ignore-unmatch "$f" >/dev/null 2>&1 || true
+              done
+          git checkout HEAD -- .github/workflows/sync-upstream.yml
+          git add .github/workflows/sync-upstream.yml
+
+          # 2. Files we re-patch afterwards: take the upstream version now, the
+          #    "Restore fork patches" step reapplies our changes on top.
+          for f in Dockerfile src/context/LanguageContext.tsx; do
+            if git ls-files -u -- "$f" | grep -q .; then
+              git checkout --theirs -- "$f"
+              git add "$f"
+            fi
+          done
+
+          # 3. Anything still unmerged is a genuine source conflict we cannot
+          #    resolve automatically.
+          REMAINING="$(git diff --name-only --diff-filter=U)"
+          if [ -n "$REMAINING" ]; then
+            echo "::error::Unresolved conflicts:"
+            echo "$REMAINING"
             git merge --abort || true
             echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore: merge upstream ${{ steps.upstream.outputs.tag }}" || true
+            echo "failed=false" >> "$GITHUB_OUTPUT"
           fi
           git tag -d _upstream-fetch || true
 
-      - name: Open issue on merge conflict
+      - name: Report merge conflict
         if: steps.check.outputs.skip != 'true' && steps.merge.outputs.failed == 'true'
         uses: actions/github-script@v7
         with:
           script: |
             const tag = '${{ steps.upstream.outputs.tag }}';
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🚨 Merge conflict with upstream ${tag}`,
-              body: [
-                `Automatic merge of \`${tag}\` into \`master\` failed due to conflicts.`,
-                '',
-                '**Action needed:** resolve conflicts manually and push to `master`.',
-                '',
-                `Upstream release: https://github.com/seerr-team/seerr/releases/tag/${tag}`,
-              ].join('\n'),
-            });
-            core.setFailed(`Merge conflict with upstream ${tag} — issue created`);
+            // Issues may be disabled on the fork; don't crash if so.
+            try {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Merge conflict with upstream ${tag}`,
+                body: [
+                  `Automatic merge of \`${tag}\` into \`master\` failed due to conflicts.`,
+                  '',
+                  '**Action needed:** resolve conflicts manually and push to `master`.',
+                  '',
+                  `Upstream release: https://github.com/seerr-team/seerr/releases/tag/${tag}`,
+                ].join('\n'),
+              });
+            } catch (e) {
+              console.log(`Could not open issue (${e.message}); see logs above for conflicts.`);
+            }
+            core.setFailed(`Merge conflict with upstream ${tag}`);
 
       - name: Restore fork-specific patches
         if: steps.check.outputs.skip != 'true' && steps.merge.outputs.failed != 'true'
