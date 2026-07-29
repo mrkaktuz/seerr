@@ -92,7 +92,9 @@ jobs:
 
           # 2. Files we re-patch afterwards: take the upstream version now, the
           #    "Restore fork patches" step reapplies our changes on top.
-          for f in Dockerfile src/context/LanguageContext.tsx; do
+          for f in Dockerfile \
+                   src/context/LanguageContext.tsx \
+                   src/components/Layout/VersionStatus/index.tsx; do
             if git ls-files -u -- "$f" | grep -q .; then
               git checkout --theirs -- "$f"
               git add "$f"
@@ -105,6 +107,22 @@ jobs:
           if [ -n "$REMAINING" ]; then
             echo "::error::Unresolved conflicts:"
             echo "$REMAINING"
+            # Issues are disabled on this fork, so make the details visible in
+            # the run summary too — otherwise a failed sync is easy to miss.
+            {
+              echo "## 🚨 Merge conflict with upstream ${{ steps.upstream.outputs.tag }}"
+              echo
+              echo "Conflicting files:"
+              echo '```'
+              echo "$REMAINING"
+              echo '```'
+              echo "<details><summary>Conflict markers</summary>"
+              echo
+              echo '```diff'
+              git diff --diff-filter=U | head -c 40000
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
             git merge --abort || true
             echo "failed=true" >> "$GITHUB_OUTPUT"
           else
@@ -141,22 +159,55 @@ jobs:
       - name: Restore fork-specific patches
         if: steps.check.outputs.skip != 'true' && steps.merge.outputs.failed != 'true'
         run: |
-          node -e "
-            const fs = require('fs');
+          node <<'NODE'
+          const fs = require('fs');
 
-            // Restore Russian 💩
-            const langFile = 'src/context/LanguageContext.tsx';
-            let src = fs.readFileSync(langFile, 'utf8');
-            src = src.replace(/display: 'p?[Рр]усс?ьк?[ийій]+(?:\s*💩)?'/, \"display: 'pусський 💩'\");
-            fs.writeFileSync(langFile, src);
+          const read = (f) => fs.readFileSync(f, 'utf8');
+          const write = (f, s) => fs.writeFileSync(f, s);
+          const assert = (cond, msg) => {
+            if (!cond) {
+              console.log(`::error::Fork patch failed: ${msg}`);
+              process.exit(1);
+            }
+          };
 
-            // Patch Dockerfile: allow pnpm to install unlocked deps (we add cheerio, html-entities)
-            const dockerfile = 'Dockerfile';
-            let df = fs.readFileSync(dockerfile, 'utf8');
-            df = df.replace(/pnpm install --prod --frozen-lockfile/g, 'pnpm install --prod --no-frozen-lockfile');
-            df = df.replace(/pnpm install --frozen-lockfile/g, 'pnpm install --no-frozen-lockfile');
-            fs.writeFileSync(dockerfile, df);
-          "
+          // Restore Russian 💩
+          const langFile = 'src/context/LanguageContext.tsx';
+          let src = read(langFile);
+          src = src.replace(
+            /display: 'p?[Рр]усс?ьк?[ийій]+(?:\s*💩)?'/,
+            "display: 'pусський 💩'"
+          );
+          write(langFile, src);
+          assert(src.includes("display: 'pусський 💩'"), `${langFile} — display string not patched`);
+
+          // Patch Dockerfile: allow pnpm to install unlocked deps (we add cheerio, html-entities)
+          const dockerfile = 'Dockerfile';
+          let df = read(dockerfile);
+          df = df.replace(/pnpm install --prod --frozen-lockfile/g, 'pnpm install --prod --no-frozen-lockfile');
+          df = df.replace(/pnpm install --frozen-lockfile/g, 'pnpm install --no-frozen-lockfile');
+          write(dockerfile, df);
+          assert(!/(?<!no-)frozen-lockfile/.test(df), `${dockerfile} — --frozen-lockfile still present`);
+
+          // Show the UA fork tag as a third line in the sidebar version block
+          const vsFile = 'src/components/Layout/VersionStatus/index.tsx';
+          let vs = read(vsFile);
+          if (!vs.includes("data.commitTag !== 'local'")) {
+            const anchor = '      </div>\n      {data.updateAvailable';
+            assert(vs.includes(anchor), `${vsFile} — anchor for the commitTag block not found`);
+            const block = [
+              "        {data.commitTag && data.commitTag !== 'local' && (",
+              '          <span className="truncate opacity-60">',
+              '            <code className="bg-transparent p-0">{data.commitTag}</code>',
+              '          </span>',
+              '        )}',
+              '',
+            ].join('\n');
+            vs = vs.replace(anchor, block + anchor);
+            write(vsFile, vs);
+          }
+          assert(vs.includes('{data.commitTag}'), `${vsFile} — commitTag block missing`);
+          NODE
           if ! git diff --quiet; then
             git commit -am "fix: restore fork patches after upstream merge"
           fi
