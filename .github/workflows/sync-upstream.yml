@@ -40,13 +40,36 @@ jobs:
 
       - name: Get latest upstream release tag
         id: upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG=$(curl -sf \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/seerr-team/seerr/releases/latest" \
-            | jq -r '.tag_name')
-          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-            echo "::error::Could not fetch upstream release tag"
+          # Authenticate the API call: unauthenticated requests are capped at
+          # 60/hour per IP and hosted runners share IPs, so a plain curl gets
+          # 403-ed at random. Retry as well, and log the status/body — the bare
+          # `curl -sf` swallowed both and left "could not fetch" with no clue.
+          TAG=""
+          HTTP=000
+          for attempt in 1 2 3 4 5; do
+            HTTP=$(curl -sS -o /tmp/upstream-release.json -w '%{http_code}' \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/seerr-team/seerr/releases/latest") || HTTP=000
+            if [ "$HTTP" = "200" ]; then
+              TAG=$(jq -r '.tag_name // empty' /tmp/upstream-release.json)
+            fi
+            if [ -n "$TAG" ]; then
+              break
+            fi
+            echo "Attempt $attempt/5 failed (HTTP $HTTP):"
+            head -c 500 /tmp/upstream-release.json 2>/dev/null || true
+            echo
+            if [ "$attempt" != "5" ]; then
+              sleep $((attempt * 10))
+            fi
+          done
+          if [ -z "$TAG" ]; then
+            echo "::error::Could not fetch upstream release tag (last HTTP status: $HTTP)"
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
