@@ -112,10 +112,17 @@ jobs:
               done
           git checkout HEAD -- .github/workflows/sync-upstream.yml
           git add .github/workflows/sync-upstream.yml
+          #    New files upstream adds to .github/workflows (e.g. actions.lock)
+          #    merge cleanly, so drop them explicitly as well.
+          git ls-files -- .github/workflows \
+            | grep -vx '.github/workflows/sync-upstream.yml' \
+            | xargs -r git rm -q -f --
 
           # 2. Files we re-patch afterwards: take the upstream version now, the
           #    "Restore fork patches" step reapplies our changes on top.
           for f in Dockerfile \
+                   package.json \
+                   pnpm-lock.yaml \
                    src/context/LanguageContext.tsx \
                    src/components/Layout/VersionStatus/index.tsx; do
             if git ls-files -u -- "$f" | grep -q .; then
@@ -203,6 +210,26 @@ jobs:
           );
           write(langFile, src);
           assert(src.includes("display: 'pусський 💩'"), `${langFile} — display string not patched`);
+
+          // Re-add fork-only dependencies (package.json is taken from upstream
+          // on conflict, so they may be gone after the merge)
+          const pkgFile = 'package.json';
+          const pkg = JSON.parse(read(pkgFile));
+          const forkDeps = { cheerio: '^1.0.0-rc.12', 'html-entities': '^2.5.2' };
+          let pkgChanged = false;
+          for (const [name, ver] of Object.entries(forkDeps)) {
+            if (!pkg.dependencies[name]) {
+              pkg.dependencies[name] = ver;
+              pkgChanged = true;
+            }
+          }
+          if (pkgChanged) {
+            pkg.dependencies = Object.fromEntries(
+              Object.entries(pkg.dependencies).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+            );
+            write(pkgFile, JSON.stringify(pkg, null, 2) + '\n');
+          }
+          assert(Object.keys(forkDeps).every((d) => pkg.dependencies[d]), `${pkgFile} — fork deps missing`);
 
           // Patch Dockerfile: allow pnpm to install unlocked deps (we add cheerio, html-entities)
           const dockerfile = 'Dockerfile';
